@@ -8,31 +8,31 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/devjoaoGustavo/grepenv/filter"
+	"github.com/devjoaoGustavo/fenv/filter"
 )
 
 var config = &aws.Config{Region: aws.String("us-east-1")}
 
-type Result struct {
-	Responses  int
-	ParamNames []string
-}
-
 type Service struct {
-	filterValues []string
+	FilterValues []string
 	SVC          *ssm.SSM
 	Key, Variant *string
 	MaxResult    *int64
 	Result
 }
 
+type Result struct {
+	Responses  int
+	ParamNames []string
+}
+
 func New(rawTerms, key, variant *string, maxResult *int64) Service {
 	session, err := session.NewSession(config)
 	if err != nil {
-		panic(fmt.Sprintf("grepenv: %q", err))
+		panic(fmt.Sprintf("fenv: %q", err))
 	}
 	return Service{
-		filterValues: filter.SplitValues(rawTerms),
+		FilterValues: filter.SplitValues(rawTerms),
 		SVC:          ssm.New(session),
 		Key:          key,
 		Variant:      variant,
@@ -43,7 +43,7 @@ func New(rawTerms, key, variant *string, maxResult *int64) Service {
 func (self *Service) DescribeParameters() {
 	results := make(chan string)
 	n := make(chan int)
-	for _, value := range self.filterValues {
+	for _, value := range self.FilterValues {
 		values := []*string{&value}
 		describeParametersInput := self.buildInput(
 			self.Key,
@@ -52,7 +52,7 @@ func (self *Service) DescribeParameters() {
 		)
 		go self.performDescribeParameters(&describeParametersInput, n, results)
 	}
-	qtd := countValues(n, self.filterValues)
+	qtd := countValues(n, len(self.FilterValues))
 	for i := 0; i < qtd; i++ {
 		select {
 		case p := <-results:
@@ -75,7 +75,7 @@ func (self Service) buildInput(key, variant *string, values []*string) ssm.Descr
 func (self Service) performDescribeParameters(input *ssm.DescribeParametersInput, n chan<- int, results chan<- string) {
 	result, err := self.SVC.DescribeParameters(input)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\x1b[31mgrepenv: %q\x1b[0m", err)
+		fmt.Fprintf(os.Stderr, "\x1b[31mfenv: %q\x1b[0m", err)
 		return
 	}
 	n <- len(result.Parameters)
@@ -95,7 +95,7 @@ func (self Service) GetParameters() {
 	for _, terms := range grouped {
 		go self.performGetParameters(terms, n, results)
 	}
-	qtd := countValues(n, grouped)
+	qtd := countValues(n, len(grouped))
 	for i := 0; i < qtd; i++ {
 		select {
 		case param := <-results:
@@ -106,11 +106,11 @@ func (self Service) GetParameters() {
 	}
 }
 
-func countValues(n chan int, values ...interface{}) (qtd int) {
-	for range values {
+func countValues(n chan int, limit int) (qtd int) {
+	for i := 0; i < limit; i++ {
 		select {
-		case i := <-n:
-			qtd += i
+		case x := <-n:
+			qtd += x
 		case <-time.After(10 * time.Second):
 			continue
 		}
@@ -118,14 +118,14 @@ func countValues(n chan int, values ...interface{}) (qtd int) {
 	return
 }
 
-func (self *Service) performGetParameters(terms []*string, n chan<- int, results chan<- string) {
+func (self Service) performGetParameters(terms []*string, n chan<- int, results chan<- string) {
 	withDecryption := true
 	output, err := self.SVC.GetParameters(&ssm.GetParametersInput{
 		Names:          terms,
 		WithDecryption: &withDecryption,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "grepenv: %q", err)
+		fmt.Fprintf(os.Stderr, "fenv: %q", err)
 	}
 	n <- len(output.Parameters)
 	for _, result := range output.Parameters {
@@ -133,7 +133,7 @@ func (self *Service) performGetParameters(terms []*string, n chan<- int, results
 	}
 }
 
-func (self Service) groupedParams() (grouped [][]*string) {
+func (self Result) groupedParams() (grouped [][]*string) {
 	all := self.RefParamNames()
 	maxTermsPerRequest := 10
 	slicesCount := len(all) / maxTermsPerRequest

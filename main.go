@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
 
-	"github.com/devjoaoGustavo/grepenv/service"
+	"github.com/devjoaoGustavo/fenv/service"
 )
 
 func main() {
@@ -13,6 +15,10 @@ func main() {
 	maxResult := flag.Int64("limit", 50, "Maximum number of results")
 	flag.Parse()
 	svc := service.New(rawTerms, filterKey, filterVariant, maxResult)
+	if len(svc.FilterValues) < 1 {
+		fmt.Println("fenv: No term given")
+		os.Exit(1)
+	}
 	svc.DescribeParameters()
 	svc.GetParameters()
 }

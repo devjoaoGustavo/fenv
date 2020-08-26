@@ -1,4 +1,4 @@
-module github.com/devjoaoGustavo/grepenv
+module github.com/devjoaoGustavo/fenv
 
 go 1.15
 
