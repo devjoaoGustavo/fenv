@@ -60,5 +60,4 @@ The easiest way to install this program is using `go install` command.
 ```
 go install github.com/devjoaoGustavo/fenv
 ```
-
-To be continued...
+Or you can download the binary directly from release page [here](https://github.com/devjoaoGustavo/fenv/releases/latest)
