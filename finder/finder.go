@@ -71,7 +71,7 @@ func (f Finder) FindParams(terms []*string, n chan<- int, results chan<- string)
 	}
 	n <- len(output.Parameters)
 	for _, result := range output.Parameters {
-		results <- fmt.Sprintf("\x1b[32m%s\x1b[0m = %s", *result.Name, *result.Value)
+		results <- fmt.Sprintf("%s=%s", *result.Name, *result.Value)
 	}
 	return nil
 }
